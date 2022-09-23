@@ -398,13 +398,13 @@ pgCollision_PolyCircle(pgPolygonBase *poly, pgCircleBase *circle)
         double t1 = ((segment_start_y - segment_end_y) * (radius_start_x - segment_start_x) + (segment_end_x - segment_start_x) * (radius_start_y - segment_start_y)) / h;
         double t2 = ((radius_start_y - radius_end_y) * (radius_start_x - segment_start_x) + (radius_end_x - radius_start_x) * (radius_start_y - segment_start_y)) / h;
 
-        if (t1 >= 0.0f && t1 < 1.0f && t2 >= 0.0f && t2 < 1.0f) {
+        if (t1 >= 0.0 && t1 < 1.0 && t2 >= 0.0 && t2 < 1.0) {
             //Check with the normal of radius perpendicular to line segment
             offset_x = (radius_end_x - radius_start_x) * t1;
             offset_y = (radius_end_y - radius_start_y) * t1;
             
             double offsetSMag = offset_x * offset_x + offset_y * offset_y;
-            if (offsetSMag - circle->r * circle->r < 0.0f) {
+            if (offsetSMag - circle->r * circle->r < 0.0) {
                 return 1;
             }
         }
@@ -414,7 +414,7 @@ pgCollision_PolyCircle(pgPolygonBase *poly, pgCircleBase *circle)
             offset_y = radius_start_y - segment_start_y;
 
             double offsetSMag = offset_x * offset_x + offset_y * offset_y;
-            if (offsetSMag - circle->r * circle->r < 0.0f) {
+            if (offsetSMag - circle->r * circle->r < 0.0) {
                 return 1;
             }
         }
