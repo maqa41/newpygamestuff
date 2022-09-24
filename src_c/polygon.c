@@ -472,8 +472,7 @@ pg_polygon_move(pgPolygonObject *self, PyObject *const *args, Py_ssize_t nargs)
         verts[i2 + 1] += Dy;
     }
 
-    PyObject *tmp = _pg_polygon_subtype_new2(Py_TYPE(self), verts,
-                                                 self->polygon.verts_num);
+    PyObject *tmp = _pg_polygon_subtype_new2(Py_TYPE(self), verts, self->polygon.verts_num);
     if (!tmp) {
         PyMem_Free(verts);
         return NULL;
@@ -579,7 +578,7 @@ pg_polygon_set_center_y(pgPolygonObject *self, PyObject *value, void *closure)
 static PyObject *
 pg_polygon_get_center(pgPolygonObject *self, void *closure)
 {
-    return pg_tuple_from_values_double(self->polygon.c_x, self->polygon.c_y);
+    return pg_TupleFromDoublePair(self->polygon.c_x, self->polygon.c_y);
 }
 
 static int
