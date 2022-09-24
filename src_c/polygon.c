@@ -15,7 +15,7 @@ _set_polygon_center_coords(pgPolygonBase *polygon)
     }
     double sum_x = 0;
     double sum_y = 0;
-    Py_ssize_t i2; 
+    Py_ssize_t i2;
     for (i2 = 0; i2 < polygon->verts_num * 2; i2 += 2) {
         sum_x += polygon->vertices[i2];
         sum_y += polygon->vertices[i2 + 1];
@@ -42,75 +42,17 @@ _pg_move_polygon_helper(pgPolygonBase *polygon, double dx, double dy)
 }
 
 static PyObject *
-pg_tuple_from_values_double(double val1, double val2)
-{
-    PyObject *tup = PyTuple_New(2);
-    if (!tup) {
-        return NULL;
-    }
-
-    PyObject *tmp = PyFloat_FromDouble(val1);
-    if (!tmp) {
-        Py_DECREF(tup);
-        return NULL;
-    }
-    PyTuple_SET_ITEM(tup, 0, tmp);
-
-    tmp = PyFloat_FromDouble(val2);
-    if (!tmp) {
-        Py_DECREF(tup);
-        return NULL;
-    }
-    PyTuple_SET_ITEM(tup, 1, tmp);
-
-    return tup;
-}
-
-static PyObject *
 _pg_polygon_vertices_aslist(pgPolygonBase *poly)
 {
-    PyObject *list = PyList_New(poly->verts_num);
-    if (!list) {
-        return NULL;
-    }
-    Py_ssize_t i;
-    Py_ssize_t i2;
-
-    for (i = 0; i < poly->verts_num; i++) {
-        i2 = i * 2;
-        PyObject *tup = pg_tuple_from_values_double(poly->vertices[i2],
-                                                    poly->vertices[i2 + 1]);
-        if (!tup) {
-            Py_DECREF(list);
-            return NULL;
-        }
-        PyList_SET_ITEM(list, i, tup);
-        tup = NULL;
-    }
-    return list;
+    return pg_PointList_FromArrayDouble(poly->vertices,
+                                        (int)poly->verts_num * 2);
 }
 
 static PyObject *
 _pg_polygon_vertices_astuple(pgPolygonBase *poly)
 {
-    PyObject *vertices = PyTuple_New(poly->verts_num);
-    if (!vertices) {
-        return NULL;
-    }
-    Py_ssize_t i;
-    Py_ssize_t i2;
-    
-    for (i = 0; i < poly->verts_num; i++) {
-        i2 = i * 2;
-        PyObject *tup = pg_tuple_from_values_double(poly->vertices[i2],
-                                                    poly->vertices[i2 + 1]);
-        if (!tup) {
-            Py_DECREF(vertices);
-            return NULL;
-        }
-        PyTuple_SET_ITEM(vertices, i, tup);
-    }
-    return vertices;
+    return pg_PointTuple_FromArrayDouble(poly->vertices,
+                                         (int)poly->verts_num * 2);
 }
 
 static int
@@ -188,7 +130,7 @@ pgPolygon_FromObject(PyObject *obj, pgPolygonBase *out)
         if (length >= 3) {
             Py_ssize_t i;
             Py_ssize_t i2;
-            
+
             out->verts_num = length;
             out->vertices = PyMem_New(double, length * 2);
             if (!out->vertices) {
@@ -279,7 +221,7 @@ pgPolygon_FromObjectFastcall(PyObject *const *args, Py_ssize_t nargs,
             }
         }
         double x_coord_sum = 0.0;
-        double y_coord_sum = 0.0;   
+        double y_coord_sum = 0.0;
         for (i = 0; i < nargs; i++) {
             i2 = i * 2;
             if (!pg_TwoDoublesFromObj(args[i], &(out->vertices[i2]),
@@ -287,10 +229,10 @@ pgPolygon_FromObjectFastcall(PyObject *const *args, Py_ssize_t nargs,
                 return 0;
             }
             x_coord_sum += out->vertices[i2];
-            y_coord_sum += out->vertices[i2 + 1];         
+            y_coord_sum += out->vertices[i2 + 1];
         }
         out->c_x = x_coord_sum / out->verts_num;
-        out->c_y = y_coord_sum / out->verts_num;   
+        out->c_y = y_coord_sum / out->verts_num;
         return 1;
     }
 
