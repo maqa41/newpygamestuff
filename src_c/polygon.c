@@ -8,7 +8,7 @@
 #include <math.h>
 
 static int
-set_polygon_center_coords(pgPolygonBase *polygon)
+_set_polygon_center_coords(pgPolygonBase *polygon)
 {
     if (!polygon) {
         return 0;
@@ -26,7 +26,7 @@ set_polygon_center_coords(pgPolygonBase *polygon)
 }
 
 static int
-move_polygon(pgPolygonBase *polygon, double dx, double dy)
+_pg_move_polygon_helper(pgPolygonBase *polygon, double dx, double dy)
 {
     if (!polygon) {
         return 0;
@@ -133,7 +133,7 @@ pgPolygon_FromObject(PyObject *obj, pgPolygonBase *out)
 
         memcpy(out->vertices, poly->vertices,
                poly->verts_num * 2 * sizeof(double));
-        set_polygon_center_coords(out);
+        _set_polygon_center_coords(out);
         return 1;
     }
 
@@ -332,7 +332,7 @@ _pg_polygon_subtype_new2(PyTypeObject *type, double *vertices,
                verts_num * 2 * sizeof(double));
 
         polygon_obj->polygon.verts_num = verts_num;
-        set_polygon_center_coords(&(polygon_obj->polygon));
+        _set_polygon_center_coords(&(polygon_obj->polygon));
     }
 
     return (PyObject *)polygon_obj;
@@ -406,6 +406,98 @@ pg_polygon_copy(pgPolygonObject *self, PyObject *_null)
 }
 
 static PyObject *
+pg_polygon_collidepolygon(pgPolygonObject *self, PyObject *const *args,
+                          Py_ssize_t nargs)
+{
+    pgPolygonBase poly;
+    if (!pgPolygon_FromObjectFastcall(args, nargs, &poly)) {
+        return RAISE(PyExc_TypeError, "A PolygonType object was expected");
+    }
+    return PyBool_FromLong(pgCollision_PolyPoly(&(self->polygon), &poly));
+}
+
+static PyObject *
+pg_polygon_collidecircle(pgPolygonObject *self, PyObject *const *args,
+                         Py_ssize_t nargs)
+{
+    pgCircleBase circle;
+    if (!pgCircle_FromObjectFastcall(args, nargs, &circle)) {
+        return RAISE(PyExc_TypeError, "A CircleType object was expected");
+    }
+    return PyBool_FromLong(pgCollision_PolyCircle(&(self->polygon), &circle));
+}
+
+static PyObject *
+pg_polygon_collideline(pgPolygonObject *self, PyObject *const *args,
+                       Py_ssize_t nargs)
+{
+    pgLineBase line;
+    if (!pgLine_FromObjectFastcall(args, nargs, &line)) {
+        return RAISE(PyExc_TypeError, "A CircleType object was expected");
+    }
+    return PyBool_FromLong(pgCollision_PolyLine(&(self->polygon), &line));
+}
+
+static PyObject *
+pg_polygon_colliderect(pgPolygonObject *self, PyObject *const *args,
+                       Py_ssize_t nargs)
+{
+    SDL_Rect temp;
+
+    if (nargs == 1) {
+        SDL_Rect *tmp;
+        if (!(tmp = pgRect_FromObject(args[0], &temp))) {
+            if (PyErr_Occurred())
+                return NULL;
+            else
+                return RAISE(PyExc_TypeError,
+                             "Invalid rect, all 4 fields must be numeric");
+        }
+        return PyBool_FromLong(pgCollision_PolyRect(&(self->polygon), tmp));
+    }
+    else if (nargs == 2) {
+        if (!pg_TwoIntsFromObj(args[0], &temp.x, &temp.y) ||
+            !pg_TwoIntsFromObj(args[1], &temp.w, &temp.h)) {
+            return RAISE(PyExc_TypeError,
+                         "Invalid rect, all 4 fields must be numeric");
+        }
+    }
+    else if (nargs == 4) {
+        if (!pg_IntFromObj(args[0], &temp.x) ||
+            !pg_IntFromObj(args[1], &temp.y) ||
+            !pg_IntFromObj(args[2], &temp.w) ||
+            !pg_IntFromObj(args[3], &temp.h)) {
+            return RAISE(PyExc_TypeError,
+                         "Invalid rect, all 4 fields must be numeric");
+        }
+    }
+    else {
+        return RAISE(PyExc_TypeError,
+                     "Invalid arguments number, must be 1, 2 or 4");
+    }
+
+    return PyBool_FromLong(pgCollision_PolyRect(&(self->polygon), &temp));
+}
+
+static PyObject *
+pg_polygon_collideswith(pgPolygonObject *self, PyObject *arg)
+{
+    int result = 0;
+    if (pgPolygon_Check(arg)) {
+        result =
+            pgCollision_PolyPoly(&self->polygon, &pgPolygon_AsPolygon(arg));
+    }
+    else if (pgCircle_Check(arg)) {
+        result =
+            pgCollision_PolyCircle(&self->polygon, &pgCircle_AsCircle(arg));
+    }
+    else if (pgRect_Check(arg)) {
+        result = pgCollision_PolyRect(&self->polygon, &pgRect_AsRect(arg));
+    }
+    return PyBool_FromLong(result);
+}
+
+static PyObject *
 pg_polygon_move(pgPolygonObject *self, PyObject *const *args, Py_ssize_t nargs)
 {
     double Dx = 0.0, Dy = 0.0;
@@ -425,9 +517,27 @@ pg_polygon_move(pgPolygonObject *self, PyObject *const *args, Py_ssize_t nargs)
         goto error;
     }
 
-    move_polygon(&self->polygon, Dx, Dy);
-    return _pg_polygon_subtype_new2(Py_TYPE(self), self->polygon.vertices,
-                                    self->polygon.verts_num);
+    double *verts = PyMem_New(double, self->polygon.verts_num * 2);
+    if (!verts) {
+        return NULL;
+    }
+    memcpy(verts, self->polygon.vertices,
+           self->polygon.verts_num * 2 * sizeof(double));
+
+    Py_ssize_t i2;
+    for (i2 = 0; i2 < self->polygon.verts_num * 2; i2 += 2) {
+        verts[i2] += Dx;
+        verts[i2 + 1] += Dy;
+    }
+
+    PyObject *tmp = _pg_polygon_subtype_new2(Py_TYPE(self), verts,
+                                                 self->polygon.verts_num);
+    if (!tmp) {
+        PyMem_Free(verts);
+        return NULL;
+    }
+    PyMem_Free(verts);
+    return tmp;
 error:
     return RAISE(PyExc_TypeError, "move requires a pair of numbers");
 }
@@ -453,7 +563,7 @@ pg_polygon_move_ip(pgPolygonObject *self, PyObject *const *args,
         goto error;
     }
 
-    move_polygon(&(self->polygon), Dx, Dy);
+    _pg_move_polygon_helper(&(self->polygon), Dx, Dy);
     Py_RETURN_NONE;
 
 error:
@@ -461,6 +571,13 @@ error:
 }
 
 static struct PyMethodDef pg_polygon_methods[] = {
+    {"collidepolygon", (PyCFunction)pg_polygon_collidepolygon, METH_FASTCALL,
+     NULL},
+    {"collidecircle", (PyCFunction)pg_polygon_collidecircle, METH_FASTCALL,
+     NULL},
+    {"colliderect", (PyCFunction)pg_polygon_colliderect, METH_FASTCALL, NULL},
+    {"collideline", (PyCFunction)pg_polygon_collideline, METH_FASTCALL, NULL},
+    {"collidewith", (PyCFunction)pg_polygon_collideswith, METH_O, NULL},
     {"move", (PyCFunction)pg_polygon_move, METH_FASTCALL, NULL},
     {"move_ip", (PyCFunction)pg_polygon_move_ip, METH_FASTCALL, NULL},
     {"__copy__", (PyCFunction)pg_polygon_copy, METH_NOARGS, NULL},
@@ -494,7 +611,7 @@ pg_polygon_set_center_x(pgPolygonObject *self, PyObject *value, void *closure)
         PyErr_SetString(PyExc_TypeError, "Expected a number");
         return -1;
     }
-    move_polygon(&(self->polygon), (val - self->polygon.c_x), 0.0);
+    _pg_move_polygon_helper(&(self->polygon), (val - self->polygon.c_x), 0.0);
     return 0;
 }
 
@@ -513,7 +630,7 @@ pg_polygon_set_center_y(pgPolygonObject *self, PyObject *value, void *closure)
         PyErr_SetString(PyExc_TypeError, "Expected a number");
         return -1;
     }
-    move_polygon(&(self->polygon), 0.0, (val - self->polygon.c_y));
+    _pg_move_polygon_helper(&(self->polygon), 0.0, (val - self->polygon.c_y));
     return 0;
 }
 
@@ -532,7 +649,7 @@ pg_polygon_set_center(pgPolygonObject *self, PyObject *value, void *closure)
         PyErr_SetString(PyExc_TypeError, "Expected a sequence of 2 numbers");
         return -1;
     }
-    move_polygon(&(self->polygon), (new_c_x - self->polygon.c_x),
+    _pg_move_polygon_helper(&(self->polygon), (new_c_x - self->polygon.c_x),
                  (new_c_y - self->polygon.c_y));
     return 0;
 }
