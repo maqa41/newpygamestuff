@@ -402,7 +402,7 @@ pgCollision_PolyCircle(pgPolygonBase *poly, pgCircleBase *circle)
             //Check with the normal of radius perpendicular to line segment
             offset_x = (radius_end_x - radius_start_x) * t1;
             offset_y = (radius_end_y - radius_start_y) * t1;
-            
+
             double offsetSMag = offset_x * offset_x + offset_y * offset_y;
             if (offsetSMag - circle->r * circle->r < 0.0f) {
                 return 1;
@@ -427,7 +427,7 @@ pgIntersection_PolyPoly(pgPolygonBase *polygon_1, pgPolygonBase *polygon_2)
 {
     pgPolygonBase *poly_1 = polygon_1;
     pgPolygonBase *poly_2 = polygon_2;
-    
+
     int shape;
     for (shape = 0; shape < 2; shape++)
     {
@@ -484,7 +484,7 @@ pgIntersection_PolyPoly(pgPolygonBase *polygon_1, pgPolygonBase *polygon_2)
 static int
 pgIntersection_PolyLine(pgPolygonBase *polygon, pgLineBase *line)
 {
-    
+
 }
 
 static int
