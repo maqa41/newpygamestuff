@@ -207,7 +207,7 @@ class PolygonTypeTest(unittest.TestCase):
     def test_center__invalid_value(self):
         """Ensures the function can handle the polygon center component by invalid data types."""
         poly = Polygon(_some_vertices.copy())
-        for value in (None, [], "1", (1,), [1, 2, 3]):
+        for value in (None, [], "1", (1,), [1, 2, 3], ("s", 5), (None, 2), (2, (3,))):
             with self.assertRaises(TypeError):
                 poly.center = value
 
